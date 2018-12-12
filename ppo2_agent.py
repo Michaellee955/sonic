@@ -22,7 +22,7 @@ def main():
     with tf.Session(config=config):
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
-        ppo2.learn(policy=policies.CnnPolicy,
+        ppo2.learn(policy=policies.CnnPolicy, 
                    env=DummyVecEnv([make_env]),
                    nsteps=4096,
                    nminibatches=8,
