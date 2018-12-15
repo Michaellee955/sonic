@@ -1,0 +1,10 @@
+# note
+notes.txt
+
+# mac local files
+.
+..
+.idea/
+
+# process file
+*pyc
