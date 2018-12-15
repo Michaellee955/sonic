@@ -7,4 +7,10 @@ notes.txt
 .idea/
 
 # process file
-*pyc
+*.pyc
+
+# model
+cpt
+
+# log files
+train/
