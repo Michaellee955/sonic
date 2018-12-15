@@ -147,7 +147,9 @@ class CnnPolicy(object):
     def __init__(self, ob_space, ac_space, nbatch, nsteps, scope="model", reuse=False, collections=None, trainable=True): #pylint: disable=W0613
         nh, nw, nc = ob_space.shape
         ob_shape = (nbatch, nh, nw, nc)
+        print("ob_shape: ", ob_shape)
         nact = ac_space.n
+        print("nact: ", nact)
 
         X = tf.placeholder(tf.uint8, ob_shape)  # obs
         given_a = tf.placeholder(tf.int64, (nbatch,))
@@ -163,7 +165,6 @@ class CnnPolicy(object):
         self.pd = self.pdtype.pdfromflat(pi)
 
         a0 = self.pd.sample()
-        # print(a0.shape)
         neglogp0 = self.pd.neglogp(a0)
         given_neglogp0 = self.pd.neglogp(given_a)
         self.initial_state = None

@@ -11,7 +11,7 @@ import json
 from detect.backbone.tiny_darknet_fcn import yolo_net, load_from_binary
 from detect.util.postprocessing import getboxes
 from lawking.wrapper.atari_wrapper import LazyFrames
-import random
+import random, time
 
 import cv2
 cv2.ocl.setUseOpenCL(False)
@@ -55,6 +55,7 @@ class YoloModel(object):
         print('yolo loaded')
 
     def observation(self, frame):
+        print("yolo observation!!!!!")
         self.box_channel[:] = 0
 
         img = frame / 255.0
@@ -344,6 +345,8 @@ class ppo2:
                 mb_neglogpacs.append(neglogpacs)
                 mb_dones.append(self.dones)
                 obs, rewards, self.dones, infos = self.env.step(actions)
+                # self.env.render()
+                # time.sleep(0.05)
                 self.observe(obs)
 
                 mb_rewards.append(rewards)
@@ -353,7 +356,6 @@ class ppo2:
                     info = infos[i]
                     if done:
                         epinfos.append(info)
-
             #batch of steps to batch of rollouts
             mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
             mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
@@ -518,6 +520,21 @@ class ppo2:
                 self.model.save(sess, savepath)
                 print('Saved to', savepath)
 
-        self.env.close()
+        self.envs[0].close()
 
+    def run(self, sess):
+
+        # syn to local
+        sess.run(self.model.syn)
+        x1 = sess.run('model/v/b:0')
+        x2 = sess.run('local_model/v/b:0')
+        print('syn valid')
+        print(x1)
+        print(x2)
+
+        syn_ends = time.time()
+        obs, returns, masks, actions, values, neglogpacs, states, epinfos = self.runner.run(sess)  # pylint: disable=E0632
+
+
+        self.envs[0].close()
 

@@ -23,18 +23,22 @@ else:
     from lawking.wrapper.sonic_util import make_env as make_env
 
 
+game = 'SonicTheHedgehog-Genesis'
+state = 'LabyrinthZone.Act1'
+
 def main():
     print("agent = ppo2()")
     agent = ppo2()
-    num_env = 1
+    num_env = 10
     env = FaKeSubprocVecEnv([lambda: make_env(stack=False, scale_rew=True, frame_wrapper=WarpFrameRGB, reward_type=30)] * num_env)
+
 
     print("local_agent = ppo2()")
     local_agent = ppo2()
     print("local_agent.build()")
     local_agent.build(policy=CnnPolicy,
                       env=env,
-                      nsteps=8192,
+                      nsteps=2000,
                       nminibatches=1,
                       lam=0.95,
                       gamma=0.99,
@@ -58,7 +62,7 @@ def main():
     print("agent.build()")
     agent.build(policy=CnnPolicy,
                 env=env,
-                nsteps=8192,
+                nsteps=2000,
                 nminibatches=1,
                 lam=0.95,
                 gamma=0.99,
@@ -68,7 +72,7 @@ def main():
                 lr=lambda f: f*4e-4,
                 cliprange=lambda f: f*0.2,
                 total_timesteps=int(3e6),
-                save_interval=10,
+                save_interval=0,
                 save_dir='cpt',
                 task_index=0,
                 local_model=local_agent.model,
@@ -83,7 +87,7 @@ def main():
         agent.model.load(mon_sess)
         agent.model.yolo_load(mon_sess)
 
-        agent.learn(mon_sess)
+        agent.run(mon_sess)
 
 if __name__ == '__main__':
     try:

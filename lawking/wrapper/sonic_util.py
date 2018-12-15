@@ -19,7 +19,7 @@ train_level = [['SonicTheHedgehog-Genesis', 'SpringYardZone.Act3'],
                ['SonicTheHedgehog-Genesis', 'StarLightZone.Act1'],
                ['SonicTheHedgehog-Genesis', 'MarbleZone.Act2'],
                ['SonicTheHedgehog-Genesis', 'MarbleZone.Act1'],
-               ['SonicTheHedgehog-Genesis', 'MarbleZone.Act3'],
+               #['SonicTheHedgehog-Genesis', 'MarbleZone.Act3'],
                ['SonicTheHedgehog-Genesis', 'ScrapBrainZone.Act2'],
                ['SonicTheHedgehog-Genesis', 'LabyrinthZone.Act2'],
                ['SonicTheHedgehog-Genesis', 'LabyrinthZone.Act1'],
@@ -92,7 +92,11 @@ def make_env(stack=True, scale_rew=True, frame_wrapper=WarpFrame, reward_type=No
     """
     Create an environment with some standard wrappers.
     """
-    env = make(game='SonicTheHedgehog-Genesis', state='LabyrinthZone.Act1')
+    idx = random.randint(0, 11)
+    game, state = train_level[idx]
+
+    print(game, state)
+    env = make(game=game, state=state)
 
     return wrap_env(env, stack, scale_rew, frame_wrapper, reward_type)
 
@@ -391,3 +395,6 @@ class FaKeSubprocVecEnv(VecEnv):
     def close(self):
         for i in range(self.num_envs):
             self.envs[i].close()
+
+    def render(self, **kwargs):
+        return self.envs[0].render('human', **kwargs)
