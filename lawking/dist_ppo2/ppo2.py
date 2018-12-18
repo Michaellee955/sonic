@@ -156,13 +156,16 @@ class ppo2:
             vf_losses1 = tf.square(vpred - R)
             vf_losses2 = tf.square(vpredclipped - R)
             vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
+            tf.summary.scalar('vf_loss', vf_loss)
             ratio = tf.exp(OLDNEGLOGPAC - neglogpac)
             pg_losses = -ADV * ratio
             pg_losses2 = -ADV * tf.clip_by_value(ratio, 1.0 - CLIPRANGE, 1.0 + CLIPRANGE)
             pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
+            tf.summary.scalar('pg_loss', pg_loss)
             approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
             clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
             loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+            tf.summary.scalar('loss', loss)
             with tf.variable_scope(scope):
                 params = tf.trainable_variables(scope)
                 for p in params:
@@ -187,7 +190,10 @@ class ppo2:
             else:
                 _train = trainer.apply_gradients(grads)
 
-            def train(sess, lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
+            self.merged = tf.summary.merge_all()
+
+            def train(sess, lr, cliprange, obs, returns, masks, actions, values, neglogpacs, train_writer, update,
+                      states=None):
                 advs = returns - values
                 advs = (advs - advs.mean()) / (advs.std() + 1e-8)
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:returns, LR:lr,
@@ -196,10 +202,12 @@ class ppo2:
                     td_map[train_model.S] = states
                     td_map[train_model.M] = masks
 
-                return sess.run(
-                    [pg_loss, vf_loss, entropy, approxkl, clipfrac, _train],
+                ret = sess.run(
+                    [self.merged, pg_loss, vf_loss, entropy, approxkl, clipfrac, _train],
                     td_map
-                )[:-1]
+                )
+                train_writer.add_summary(ret[0],update)
+                return ret[1:-1]
             self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
             def save(sess, save_path):
@@ -427,7 +435,7 @@ class ppo2:
         if trainable:
             self.runner = self.Runner(env=env, model=self.model, nsteps=nsteps, gamma=gamma, lam=lam)
 
-    def learn(self, sess):
+    def learn(self, sess, train_writer):
 
         self.best_idx = -1
 
@@ -466,7 +474,7 @@ class ppo2:
                         end = start + nbatch_train
                         mbinds = inds[start:end]
                         slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                        mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices))
+                        mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, train_writer, update))
 
             else: # recurrent version
                 assert self.nenvs % self.nminibatches == 0
@@ -482,7 +490,8 @@ class ppo2:
                         mbflatinds = flatinds[mbenvinds].ravel()
                         slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                         mbstates = states[mbenvinds]
-                        mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, mbstates))
+                        mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, mbstates, train_writer,
+                                                           update))
 
             lossvals = np.mean(mblossvals, axis=0)
             tnow = time.time()

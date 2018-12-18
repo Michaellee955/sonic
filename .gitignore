@@ -9,5 +9,7 @@ notes.txt
 .DS_Store
 
 # process file
-*pyc
+*.pyc
 log/
+cpt/
+train/

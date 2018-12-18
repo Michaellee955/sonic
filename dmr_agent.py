@@ -79,13 +79,14 @@ def main():
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True  # pylint: disable=E1101
     with tf.Session(config=config) as mon_sess:
+        train_writer = tf.summary.FileWriter('./train', mon_sess.graph)
         mon_sess.run(tf.global_variables_initializer())
         mon_sess.run(tf.local_variables_initializer())
 
         agent.model.load(mon_sess)
         agent.model.yolo_load(mon_sess)
-        print("start learn")
-        agent.learn(mon_sess)
+
+        agent.learn(mon_sess,train_writer)
 
 if __name__ == '__main__':
     try:
