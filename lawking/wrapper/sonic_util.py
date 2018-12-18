@@ -94,7 +94,7 @@ def make_env(stack=True, scale_rew=True, frame_wrapper=WarpFrame, reward_type=No
     """
     idx = random.randint(0, 12)
     game, state = train_level[idx]
-    game, state = ['SonicTheHedgehog-Genesis', 'GreenHillZone.Act1']
+    # game, state = ['SonicTheHedgehog-Genesis', 'GreenHillZone.Act1']
 
     print(game, state)
     env = make(game=game, state=state)

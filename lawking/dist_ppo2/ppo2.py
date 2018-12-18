@@ -477,7 +477,7 @@ class ppo2:
                         mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, train_writer, update))
 
             else: # recurrent version
-                assert self.nenvs % self.nminibatches == 0
+                assert self.nminibatches % self.nenvs == 0
                 envsperbatch = self.nenvs // self.nminibatches
                 envinds = np.arange(self.nenvs)
                 flatinds = np.arange(self.nenvs * self.nsteps).reshape(self.nenvs, self.nsteps)
