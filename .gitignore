@@ -5,6 +5,8 @@ notes.txt
 .
 ..
 .idea/
+.vscode/
+.DS_Store
 
 # process file
 *pyc
