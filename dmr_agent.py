@@ -59,7 +59,7 @@ def main():
     print("agent.build()")
     agent.build(policy=CnnPolicy,
                 env=env,
-                nsteps=1000,
+                nsteps=10000,
                 nminibatches=1,
                 lam=0.95,
                 gamma=0.99,
