@@ -374,7 +374,7 @@ def configure(dir=None, format_strs=None):
     output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
-    log('Logging to %s'%dir)
+    # log('Logging to %s'%dir)
 
 def reset():
     if Logger.CURRENT is not Logger.DEFAULT:

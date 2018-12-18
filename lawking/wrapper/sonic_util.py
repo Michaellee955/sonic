@@ -19,7 +19,7 @@ train_level = [['SonicTheHedgehog-Genesis', 'SpringYardZone.Act3'],
                ['SonicTheHedgehog-Genesis', 'StarLightZone.Act1'],
                ['SonicTheHedgehog-Genesis', 'MarbleZone.Act2'],
                ['SonicTheHedgehog-Genesis', 'MarbleZone.Act1'],
-               #['SonicTheHedgehog-Genesis', 'MarbleZone.Act3'],
+               ['SonicTheHedgehog-Genesis', 'MarbleZone.Act3'],
                ['SonicTheHedgehog-Genesis', 'ScrapBrainZone.Act2'],
                ['SonicTheHedgehog-Genesis', 'LabyrinthZone.Act2'],
                ['SonicTheHedgehog-Genesis', 'LabyrinthZone.Act1'],
@@ -92,8 +92,9 @@ def make_env(stack=True, scale_rew=True, frame_wrapper=WarpFrame, reward_type=No
     """
     Create an environment with some standard wrappers.
     """
-    idx = random.randint(0, 11)
+    idx = random.randint(0, 12)
     game, state = train_level[idx]
+    game, state = ['SonicTheHedgehog-Genesis', 'GreenHillZone.Act1']
 
     print(game, state)
     env = make(game=game, state=state)

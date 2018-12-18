@@ -103,7 +103,8 @@ class ppo2:
 
     class Model(object):
         def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
-                    nsteps, ent_coef, vf_coef, max_grad_norm, scope='model', collections=None, trainable=True, local_model=None, global_step=None):
+                    nsteps, ent_coef, vf_coef, max_grad_norm, scope='model', collections=None, trainable=True, local_model=None, global_step=None,
+                    restore_path=None):
 
             self.scope = scope
             self.act_model = policy(ob_space, ac_space, nbatch_act, 1, scope, reuse=False, collections=collections, trainable=trainable)
@@ -111,7 +112,7 @@ class ppo2:
             if local_model:
                 self.step = local_model.act_model.step
                 self.value = local_model.act_model.value
-                self.step_given_action = local_model.act_model.step_given_action
+                # self.step_given_action = local_model.act_model.step_given_action
                 self.initial_state = local_model.act_model.initial_state
                 self.yolo = local_model.yolo
                 self.yolo_load = local_model.yolo.load
@@ -120,7 +121,7 @@ class ppo2:
             else:
                 self.step = self.act_model.step
                 self.value = self.act_model.value
-                self.step_given_action = self.act_model.step_given_action
+                # self.step_given_action = self.act_model.step_given_action
                 self.initial_state = self.act_model.initial_state
 
                 self.local_variables = tf.local_variables(scope)
@@ -194,6 +195,7 @@ class ppo2:
                 if states is not None:
                     td_map[train_model.S] = states
                     td_map[train_model.M] = masks
+
                 return sess.run(
                     [pg_loss, vf_loss, entropy, approxkl, clipfrac, _train],
                     td_map
@@ -235,7 +237,8 @@ class ppo2:
                 return restores
 
             self.restores = []
-            self.restores.append(get_restore('cpt/checkpoints/0511_npn_01350_110592000'))
+            if restore_path:
+                self.restores.append(get_restore(restore_path))
 
             def load(sess, idx=0):
                 sess.run(self.restores[idx])
@@ -251,6 +254,7 @@ class ppo2:
             self.train_model = train_model
             self.save = save
             self.load = load
+            print("model init done")
 
     class Runner(object):
 
@@ -345,8 +349,10 @@ class ppo2:
                 mb_neglogpacs.append(neglogpacs)
                 mb_dones.append(self.dones)
                 obs, rewards, self.dones, infos = self.env.step(actions)
-                # self.env.render()
-                # time.sleep(0.05)
+                
+                if not os.environ.get('CUDA_VISIBLE_DEVICES'):
+                    self.env.render()
+                    # time.sleep(0.05)
                 self.observe(obs)
 
                 mb_rewards.append(rewards)
@@ -387,7 +393,7 @@ class ppo2:
     def build(self, *, policy, env, nsteps, total_timesteps, ent_coef, lr,
                 vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
                 log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-                save_interval=0, save_dir='cpt', task_index=-1, scope='model', collections=None, trainable=True, local_model=None, global_step=None):
+                save_interval=0, save_dir='cpt', task_index=-1, scope='model', collections=None, trainable=True, local_model=None, global_step=None, restore_path=None):
 
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
@@ -413,7 +419,7 @@ class ppo2:
         self.nbatch_train = self.nbatch // nminibatches
 
         self.make_model = lambda : self.Model(policy=policy, ob_space=self.ob_space, ac_space=self.ac_space, nbatch_act=self.nenvs, nbatch_train=self.nbatch_train,
-                        nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
+                        nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef, restore_path=restore_path,
                         max_grad_norm=max_grad_norm, scope=scope, collections=collections, trainable=trainable, local_model=local_model, global_step=global_step)
 
         self.model = self.make_model()
@@ -423,7 +429,6 @@ class ppo2:
 
     def learn(self, sess):
 
-        max_score = [0, 0]
         self.best_idx = -1
 
         epinfobuf = deque(maxlen=100)
@@ -494,6 +499,7 @@ class ppo2:
                 eprewmean = safemean([epinfo['episode_reward'] for epinfo in epinfobuf])
                 epstepmean = safemean([epinfo['episode_step'] for epinfo in epinfobuf])
 
+                logger.configure("./log/{}".format(update), ['stdout', 'log', 'json', 'csv', 'tensorboard'])
                 logger.logkv("serial_timesteps", update * self.nsteps)
                 logger.logkv("nupdates", update)
                 logger.logkv("total_timesteps", update * self.nbatch)
@@ -515,9 +521,9 @@ class ppo2:
                 # save to joblib
                 checkdir = osp.join(self.save_dir, 'checkpoints')
                 os.makedirs(checkdir, exist_ok=True)
-                savepath = osp.join(checkdir, '%.5i'%update)
+                savepath = osp.join(checkdir, '%.5i' % update)
                 print('Saving to', savepath)
-                self.model.save(sess, savepath)
+                # self.model.save(sess, savepath)
                 print('Saved to', savepath)
 
         self.envs[0].close()
@@ -532,9 +538,7 @@ class ppo2:
         print(x1)
         print(x2)
 
-        syn_ends = time.time()
-        obs, returns, masks, actions, values, neglogpacs, states, epinfos = self.runner.run(sess)  # pylint: disable=E0632
-
+        self.runner.run(sess)  # pylint: disable=E0632
 
         self.envs[0].close()
 

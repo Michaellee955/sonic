@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from lawking.wrapper.atari_wrapper import WarpFrameRGB, WarpFrameRGBYolo
 from lawking.dist_ppo2.ppo2 import ppo2
-from lawking.dist_ppo2.policies import CnnPolicy
+from lawking.dist_ppo2.policies import CnnPolicy, LstmPolicy
 
 from lawking.wrapper.sonic_util import FaKeSubprocVecEnv
 
@@ -22,6 +22,7 @@ if FLAGS.local:
 else:
     from lawking.wrapper.sonic_util import make_env as make_env
 
+restore_path = "cpt/checkpoints/0511_npn_01350_110592000"
 
 def main():
     print("agent = ppo2()")
@@ -58,7 +59,7 @@ def main():
     print("agent.build()")
     agent.build(policy=CnnPolicy,
                 env=env,
-                nsteps=8192,
+                nsteps=1000,
                 nminibatches=1,
                 lam=0.95,
                 gamma=0.99,
@@ -72,6 +73,7 @@ def main():
                 save_dir='cpt',
                 task_index=0,
                 local_model=local_agent.model,
+                restore_path=restore_path,
                 global_step=global_step)
 
     config = tf.ConfigProto()
@@ -82,7 +84,7 @@ def main():
 
         agent.model.load(mon_sess)
         agent.model.yolo_load(mon_sess)
-
+        print("start learn")
         agent.learn(mon_sess)
 
 if __name__ == '__main__':

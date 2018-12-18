@@ -29,7 +29,7 @@ state = 'LabyrinthZone.Act1'
 def main():
     print("agent = ppo2()")
     agent = ppo2()
-    num_env = 10
+    num_env = 1
     env = FaKeSubprocVecEnv([lambda: make_env(stack=False, scale_rew=True, frame_wrapper=WarpFrameRGB, reward_type=30)] * num_env)
 
 

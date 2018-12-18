@@ -83,13 +83,13 @@ def seq_to_batch(h, flat = False):
     else:
         return tf.reshape(tf.stack(values=h, axis=1), [-1])
 
-def lstm(xs, ms, s, scope, nh, init_scale=1.0):
+def lstm(xs, ms, s, scope, nh, init_scale=1.0, collections=None, trainable=True):
     nbatch, nin = [v.value for v in xs[0].get_shape()]
     nsteps = len(xs)
     with tf.variable_scope(scope):
-        wx = tf.get_variable("wx", [nin, nh*4], initializer=ortho_init(init_scale))
-        wh = tf.get_variable("wh", [nh, nh*4], initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", [nh*4], initializer=tf.constant_initializer(0.0))
+        wx = tf.get_variable("wx", [nin, nh*4], initializer=ortho_init(init_scale), collections=collections)
+        wh = tf.get_variable("wh", [nh, nh*4], initializer=ortho_init(init_scale), collections=collections)
+        b = tf.get_variable("b", [nh*4], initializer=tf.constant_initializer(0.0), collections=collections)
 
     c, h = tf.split(axis=1, num_or_size_splits=2, value=s)
     for idx, (x, m) in enumerate(zip(xs, ms)):
