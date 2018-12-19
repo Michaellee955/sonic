@@ -27,7 +27,7 @@ restore_path = "cpt/checkpoints/0511_npn_01350_110592000"
 def main():
     print("agent = ppo2()")
     agent = ppo2()
-    num_env = 1
+    num_env = 8
     env = FaKeSubprocVecEnv([lambda: make_env(stack=False, scale_rew=True, frame_wrapper=WarpFrameRGB, reward_type=30)] * num_env)
 
     print("local_agent = ppo2()")
@@ -36,7 +36,7 @@ def main():
     local_agent.build(policy=CnnPolicy,
                       env=env,
                       nsteps=8192,
-                      nminibatches=32,
+                      nminibatches=8,
                       lam=0.95,
                       gamma=0.99,
                       noptepochs=4,
@@ -60,7 +60,7 @@ def main():
     agent.build(policy=CnnPolicy,
                 env=env,
                 nsteps=8192,
-                nminibatches=16 * num_env,
+                nminibatches=8 * num_env,
                 lam=0.95,
                 gamma=0.99,
                 noptepochs=4,

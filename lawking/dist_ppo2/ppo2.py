@@ -134,7 +134,7 @@ class ppo2:
             init_updates = []
             assert len(tf.global_variables(scope)) == len(local_model.local_variables)
             for var, target_var in zip(tf.global_variables(scope), local_model.local_variables):
-                print('syn  {} <- {}'.format(target_var.name, var.name))
+                # print('syn  {} <- {}'.format(target_var.name, var.name))
                 init_updates.append(tf.assign(target_var, var).op)
             self.syn = tf.group(*init_updates)
 
@@ -338,6 +338,7 @@ class ppo2:
             mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [],[],[],[],[],[]
             mb_states = self.states
             epinfos = []
+            print("obs shape", self.obs.shape, "!!!!!!!!")
             for _ in range(self.nsteps):
                 actions, values, self.states, neglogpacs = self.model.step(sess, self.obs, self.states, self.dones)
 
@@ -372,8 +373,10 @@ class ppo2:
                         epinfos.append(info)
             #batch of steps to batch of rollouts
             mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
+            print("mb_obs shape", mb_obs.shape)
             mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
             mb_actions = np.asarray(mb_actions)
+            print("mb_actions shape", mb_actions.shape)
             mb_values = np.asarray(mb_values, dtype=np.float32)
             mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
             mb_dones = np.asarray(mb_dones, dtype=np.bool)
@@ -463,6 +466,8 @@ class ppo2:
             obs, returns, masks, actions, values, neglogpacs, states, epinfos = self.runner.run(sess) #pylint: disable=E0632
             epinfobuf.extend(epinfos)
 
+            print("prepare to update!!!!")
+            print(obs.shape, actions.shape)
             mblossvals = []
             learnstart = time.time()
             if states is None: # nonrecurrent version
@@ -477,7 +482,7 @@ class ppo2:
                         mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, train_writer, update))
 
             else: # recurrent version
-                assert self.nminibatches % self.nenvs == 0
+                assert self.nenvs % self.nminibatches == 0
                 envsperbatch = self.nenvs // self.nminibatches
                 envinds = np.arange(self.nenvs)
                 flatinds = np.arange(self.nenvs * self.nsteps).reshape(self.nenvs, self.nsteps)
@@ -532,10 +537,9 @@ class ppo2:
                 os.makedirs(checkdir, exist_ok=True)
                 savepath = osp.join(checkdir, '%.5i' % update)
                 print('Saving to', savepath)
-                # self.model.save(sess, savepath)
+                self.model.save(sess, savepath)
                 print('Saved to', savepath)
 
-        self.envs[0].close()
 
     def run(self, sess):
 
@@ -548,6 +552,4 @@ class ppo2:
         print(x2)
 
         self.runner.run(sess)  # pylint: disable=E0632
-
-        self.envs[0].close()
 
