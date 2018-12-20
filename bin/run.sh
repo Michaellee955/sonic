@@ -12,15 +12,15 @@ if [ $# -lt 2 ]; then
     exit 1
 fi
 
-MODEL_PATH=${PROJECT_DIR}/model/$1/checkpoints/$2
+MODEL_PATH=${PROJECT_DIR}/model/$1/$2
 
-if [ ! -f ${MODEL_PATH} ]; then
+if [ ! -e ${MODEL_PATH} ]; then
     echo "ERROR: " ${MODEL_PATH} " does not exist"
     exit 1
 fi
 
 if [ $# -eq 3 ]; then
-    python3 ${PROJECT_DIR}/runner.py $1 ${MODEL_PATH} $3
+    python3 ${PROJECT_DIR}/runner.py $1 ${MODEL_PATH} $3 | tee ${PROJECT_DIR}/log/$1/run_log.txt
 else
-    python3 ${PROJECT_DIR}/runner.py $1 ${MODEL_PATH} -1
+    python3 ${PROJECT_DIR}/runner.py $1 ${MODEL_PATH} -1 | tee ${PROJECT_DIR}/log/$1/run_log.txt
 fi

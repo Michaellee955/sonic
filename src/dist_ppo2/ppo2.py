@@ -210,57 +210,59 @@ class ppo2:
                 return ret[1:-1]
             self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
-            def save(sess, save_path):
-                ps = sess.run(params)
-                joblib.dump(ps, save_path)
+            # def save(sess, save_path):
+            #     ps = sess.run(params)
+            #     joblib.dump(ps, save_path)
 
-            def get_restore(path):
-                loaded_params = joblib.load(path)
-                print("loading...")
-                print(len(params))
-                print(len(loaded_params))
-                for x in params:
-                    print(x)
-                for x in loaded_params:
-                    print(x.shape)
-                if len(params) != len(loaded_params):
-                    loaded_params = [loaded_params[i] for i in range(1, len(loaded_params))]
-                restores = []
-                print('len(params)=%d' % (len(params)))
-                print('len(loaded_params)=%d' % (len(loaded_params)))
-                for p, loaded_p in zip(params, loaded_params):
-                    print(p.name)
-                    print(p.shape)
-                    print(loaded_p.shape)
+            # def get_restore(path):
+            #     # loaded_params = joblib.load(path)
+            #     print("loading...")
+            #     print(len(params))
+            #     print(len(loaded_params))
+            #     for x in params:
+            #         print(x)
+            #     for x in loaded_params:
+            #         print(x.shape)
+            #     if len(params) != len(loaded_params):
+            #         loaded_params = [loaded_params[i] for i in range(1, len(loaded_params))]
+            #     restores = []
+            #     print('len(params)=%d' % (len(params)))
+            #     print('len(loaded_params)=%d' % (len(loaded_params)))
+            #     for p, loaded_p in zip(params, loaded_params):
+            #         print(p.name)
+            #         print(p.shape)
+            #         print(loaded_p.shape)
 
-                    if p.name == 'model/c1/w:0' and p.shape != loaded_p.shape:
-                        print("need to do somthing")
+            #         if p.name == 'model/c1/w:0' and p.shape != loaded_p.shape:
+            #             print("need to do somthing")
 
-                        x = np.zeros(p.shape)
-                        x[:, :, 0:loaded_p.shape[2], :] = loaded_p
-                        loaded_p = x
+            #             x = np.zeros(p.shape)
+            #             x[:, :, 0:loaded_p.shape[2], :] = loaded_p
+            #             loaded_p = x
 
-                    restores.append(p.assign(loaded_p))
+            #         restores.append(p.assign(loaded_p))
 
-                return restores
+            #     return restores
 
-            self.restores = []
-            if restore_path:
-                self.restores.append(get_restore(restore_path))
+            # self.restores = []
+            # if restore_path:
+            #     self.restores.append(get_restore(restore_path))
 
-            def load(sess, idx=0):
-                sess.run(self.restores[idx])
-                print('restored')
-                x1 = sess.run('model/v/b:0')
-                x2 = sess.run('local_model/v/b:0')
-                print('restored value')
-                print(x1)
-                print(x2)
+            def load(sess, restore_path):
+                saver = tf.train.Saver()
+                saver.restore(sess, tf.train.latest_checkpoint(restore_path))
+                # sess.run(self.restores[idx])
+                print('restored from {restore_path}')
+                # x1 = sess.run('model/v/b:0')
+                # x2 = sess.run('local_model/v/b:0')
+                # print('restored value')
+                # print(x1)
+                # print(x2)
                 # If you want to load weights, also save/load observation scaling inside VecNormalize
 
             self.train = train
             self.train_model = train_model
-            self.save = save
+            # self.save = save
             self.load = load
             print("model init done")
 
@@ -408,14 +410,17 @@ class ppo2:
     def build(self, *, policy, env, nsteps=2048, total_timesteps=int(3e6), ent_coef=0.001, lr=lambda f: f*4e-4,
                 vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
                 log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-                save_interval=0, save_dir='cpt', task_index=-1, scope='model', collections=None, trainable=True,
+                save_interval=0, save_dir='cpt', log_dir='log', task_index=-1, scope='model', collections=None, trainable=True,
                 local_model=None, global_step=None, restore_path=None, render=False):
-
+    # def build(self, *, policy, env, conf, scope='model', collections=None, trainable=True,
+    #             local_model=None, global_step=None, restore_path=None, render=False):
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
         self.nsteps = nsteps
         self.log_interval = log_interval
         self.save_interval = save_interval
+        # lr = lambda f: f*4e-4
+        # cliprange=lambda f: f*0.2
         self.lr = lr
 
         self.cliprange = cliprange
@@ -444,6 +449,7 @@ class ppo2:
             self.runner = self.Runner(env=env, model=self.model, nsteps=nsteps, gamma=gamma, lam=lam, render=render)
 
     def learn(self, sess, train_writer):
+        saver = tf.train.Saver()
 
         self.best_idx = -1
 
@@ -542,7 +548,8 @@ class ppo2:
                 os.makedirs(checkdir, exist_ok=True)
                 savepath = osp.join(checkdir, '%.5i' % update)
                 print('Saving to', savepath)
-                self.model.save(sess, savepath)
+                # self.model.save(sess, savepath)
+                savepath = saver.save(sess, savepath)
                 print('Saved to', savepath)
 
 

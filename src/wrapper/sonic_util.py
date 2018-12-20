@@ -88,7 +88,7 @@ def make_env_local(stack=True, scale_rew=True, idx=6, frame_wrapper=WarpFrame, r
     return wrap_env(env, stack, scale_rew, frame_wrapper, reward_type)
 
 
-def make_env(stack=True, scale_rew=True, frame_wrapper=WarpFrame, reward_type=None, env_idx=0):
+def make_env(stack=True, scale_rew=True, frame_wrapper=WarpFrame, reward_type=None, env_idx=-1):
     """
     Create an environment with some standard wrappers.
     """
