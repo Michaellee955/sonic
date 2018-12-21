@@ -20,7 +20,7 @@ if [ ! -e ${MODEL_PATH} ]; then
 fi
 
 if [ $# -eq 3 ]; then
-    python3 ${PROJECT_DIR}/runner.py $1 ${MODEL_PATH} $3 | tee ${PROJECT_DIR}/log/$1/run_log.txt
+    python3 ${PROJECT_DIR}/runner.py $1 ${MODEL_PATH} $3 run
 else
-    python3 ${PROJECT_DIR}/runner.py $1 ${MODEL_PATH} -1 | tee ${PROJECT_DIR}/log/$1/run_log.txt
+    python3 ${PROJECT_DIR}/runner.py $1 ${MODEL_PATH} 3 run | tee ${PROJECT_DIR}/log/$1/run_log.txt
 fi

@@ -9,7 +9,7 @@ from config.config import conf
 from src.wrapper.sonic_util import FaKeSubprocVecEnv
 
 import argparse
-import os
+import os, sys
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 parser = argparse.ArgumentParser()
@@ -26,7 +26,14 @@ else:
 restore_path = "model/cnn/checkpoints/0511_npn_01350_110592000"
 restore_path = "model/cnn/ori"
 
-def main():
+def main(model_type, model_path, env_idx=-1, mode='train'):
+    if model_type == "cnn":
+        policy = CnnPolicy
+    elif model_type == "lstm":
+        policy = LstmPolicy
+    else:
+        print("Policy is {}, expected lstm or cnn".format(model_type))
+        exit(1)
     print("agent = ppo2()")
     agent = ppo2()
     num_env = 1
@@ -34,7 +41,7 @@ def main():
 
     print("local_agent = ppo2()")
     local_agent = ppo2()
-    local_agent.build(policy=CnnPolicy,
+    local_agent.build(policy=policy,
                       env=env,
                       nsteps=2048,
                       nminibatches=8,
@@ -47,7 +54,7 @@ def main():
                       cliprange=lambda f: f*0.2,
                       total_timesteps=int(3e6),
                       save_interval=0,
-                      save_dir='model/cnn',
+                      save_dir=model_path,
                       task_index=0,
                       scope='local_model',
                     #   conf=conf('cnn', 'local'),
@@ -58,7 +65,7 @@ def main():
 
     # Build model...
     global_step = tf.train.get_or_create_global_step()
-    agent.build(policy=CnnPolicy,
+    agent.build(policy=policy,
                 env=env,
                 nsteps=2048,
                 nminibatches=1,
@@ -70,30 +77,30 @@ def main():
                 lr=lambda f: f*4e-4,
                 cliprange=lambda f: f*0.2,
                 total_timesteps=int(3e6),
-                save_interval=10,
-                save_dir='model/cnn',
-                log_dir='log/cnn',
+                save_interval=1,
+                save_dir=model_path,
+                log_dir='log/' + model_type + '/' + model_path.split('/')[-1],
                 task_index=0,
                 # conf=conf('cnn', 'model'),
                 local_model=local_agent.model,
-                restore_path=restore_path,
                 global_step=global_step,
                 render=True)
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True  # pylint: disable=E1101
     with tf.Session(config=config) as mon_sess:
-        train_writer = tf.summary.FileWriter('./train', mon_sess.graph)
+        train_writer = tf.summary.FileWriter('./log/{}/tensorboard'.format(model_type), mon_sess.graph)
         mon_sess.run(tf.global_variables_initializer())
         mon_sess.run(tf.local_variables_initializer())
 
-        agent.model.load(mon_sess, restore_path)
+        # agent.model.load(mon_sess, restore_path)
         agent.model.yolo_load(mon_sess)
 
         agent.learn(mon_sess,train_writer)
 
 if __name__ == '__main__':
+    model_type, model_path, env_idx, mode = sys.argv[1:]
     try:
-        main()
+        main(model_type, model_path, env_idx=int(env_idx), mode=mode)
     except gre.GymRemoteError as exc:
         print('exception', exc)

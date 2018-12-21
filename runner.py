@@ -26,7 +26,7 @@ else:
 game = 'SonicTheHedgehog-Genesis'
 state = 'LabyrinthZone.Act1'
 
-def main(model_type, model_path, env_idx=0):
+def main(model_type, model_path, env_idx=-1):
     if model_type == "cnn":
         policy = CnnPolicy
     elif model_type == "lstm":
@@ -87,14 +87,13 @@ def main(model_type, model_path, env_idx=0):
         mon_sess.run(tf.global_variables_initializer())
         mon_sess.run(tf.local_variables_initializer())
 
-        agent.model.load(mon_sess)
+        agent.model.load(mon_sess, model_path)
         agent.model.yolo_load(mon_sess)
 
         agent.run(mon_sess)
 
 if __name__ == '__main__':
-    model_type, model_path, env_idx = sys.argv[1:]
-    print(env_idx)
+    model_type, model_path, env_idx, mode = sys.argv[1:]
     try:
         main(model_type, model_path, env_idx=int(env_idx))
     except gre.GymRemoteError as exc:
