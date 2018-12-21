@@ -163,8 +163,11 @@ class ppo2:
             pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
             tf.summary.scalar('pg_loss', pg_loss)
             approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
+            tf.summary.scalar('approxkl', approxkl)
             clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
+            tf.summary.scalar('clipfrac', clipfrac)
             loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+            tf.summary.scalar('entropy', entropy)
             tf.summary.scalar('loss', loss)
             with tf.variable_scope(scope):
                 params = tf.trainable_variables(scope)
@@ -190,10 +193,14 @@ class ppo2:
             else:
                 _train = trainer.apply_gradients(grads)
 
-            self.merged = tf.summary.merge_all()
+            # self.merged = tf.summary.merge_all()
+            self.flag = 0
+            self.merged = False
 
-            def train(sess, lr, cliprange, obs, returns, masks, actions, values, neglogpacs, train_writer, update,
+
+            def train(sess, lr, cliprange, obs, returns, masks, actions, values, neglogpacs, train_writer, update, total_reward,
                       states=None):
+                
                 advs = returns - values
                 advs = (advs - advs.mean()) / (advs.std() + 1e-8)
                 td_map = {train_model.X:obs, A:actions, ADV:advs, R:returns, LR:lr,
@@ -202,11 +209,17 @@ class ppo2:
                     td_map[train_model.S] = states
                     td_map[train_model.M] = masks
 
+                if update == 1 and self.flag == 0:
+                    tf.summary.scalar('total rewards', total_reward)
+                    self.merged = tf.summary.merge_all()
+
                 ret = sess.run(
                     [self.merged, pg_loss, vf_loss, entropy, approxkl, clipfrac, _train],
                     td_map
                 )
-                train_writer.add_summary(ret[0],update)
+
+                train_writer.add_summary(ret[0])
+                self.flag = (self.flag + 1) % 4
                 return ret[1:-1]
             self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
@@ -252,7 +265,7 @@ class ppo2:
                 saver = tf.train.Saver()
                 saver.restore(sess, tf.train.latest_checkpoint(restore_path))
                 # sess.run(self.restores[idx])
-                print('restored from {restore_path}')
+                print('restored from {}'.format(restore_path))
                 # x1 = sess.run('model/v/b:0')
                 # x2 = sess.run('local_model/v/b:0')
                 # print('restored value')
@@ -342,6 +355,7 @@ class ppo2:
             mb_states = self.states
             epinfos = []
             print("obs shape", self.obs.shape, "!!!!!!!!")
+            total_reward = 0
             for _ in range(self.nsteps):
                 actions, values, self.states, neglogpacs = self.model.step(sess, self.obs, self.states, self.dones)
 
@@ -361,13 +375,16 @@ class ppo2:
                 mb_neglogpacs.append(neglogpacs)
                 mb_dones.append(self.dones)
                 obs, rewards, self.dones, infos = self.env.step(actions)
+                total_reward += rewards[0]
+                print("reward: ", rewards)
                 if stop and self.dones[0]:
                     print("end of episode!!!!!")
+                    print("total reward: ", total_reward)
                     return
                 
                 if self.render:
                     self.env.render()
-                    time.sleep(0.05)
+                    # time.sleep(0.05)
                 self.observe(obs)
 
                 mb_rewards.append(rewards)
@@ -378,11 +395,10 @@ class ppo2:
                     if done:
                         epinfos.append(info)
             #batch of steps to batch of rollouts
+            print("total reward: ", total_reward)
             mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
-            print("mb_obs shape", mb_obs.shape)
             mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
             mb_actions = np.asarray(mb_actions)
-            print("mb_actions shape", mb_actions.shape)
             mb_values = np.asarray(mb_values, dtype=np.float32)
             mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
             mb_dones = np.asarray(mb_dones, dtype=np.bool)
@@ -404,7 +420,7 @@ class ppo2:
             mb_returns = mb_advs + mb_values
             print('return!')
             return (*map(sf01, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)),
-                mb_states, epinfos)
+                mb_states, epinfos, total_reward)
 
 
     def build(self, *, policy, env, nsteps=2048, total_timesteps=int(3e6), ent_coef=0.001, lr=lambda f: f*4e-4,
@@ -422,6 +438,7 @@ class ppo2:
         # lr = lambda f: f*4e-4
         # cliprange=lambda f: f*0.2
         self.lr = lr
+        self.log_dir=log_dir
 
         self.cliprange = cliprange
         self.save_dir = save_dir
@@ -474,7 +491,7 @@ class ppo2:
             print(x2)
 
             syn_ends = time.time()
-            obs, returns, masks, actions, values, neglogpacs, states, epinfos = self.runner.run(sess) #pylint: disable=E0632
+            obs, returns, masks, actions, values, neglogpacs, states, epinfos, total_reward = self.runner.run(sess) #pylint: disable=E0632
             epinfobuf.extend(epinfos)
 
             print("prepare to update!!!!")
@@ -490,7 +507,7 @@ class ppo2:
                         end = start + nbatch_train
                         mbinds = inds[start:end]
                         slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                        mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, train_writer, update))
+                        mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, train_writer, update, total_reward))
 
             else: # recurrent version
                 assert self.nenvs % self.nminibatches == 0
@@ -506,8 +523,8 @@ class ppo2:
                         mbflatinds = flatinds[mbenvinds].ravel()
                         slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                         mbstates = states[mbenvinds]
-                        mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, mbstates, train_writer,
-                                                           update))
+                        mblossvals.append(self.model.train(sess, lrnow, cliprangenow, *slices, train_writer,
+                                                           update, total_reward, mbstates))
 
             lossvals = np.mean(mblossvals, axis=0)
             tnow = time.time()
@@ -524,7 +541,7 @@ class ppo2:
                 eprewmean = safemean([epinfo['episode_reward'] for epinfo in epinfobuf])
                 epstepmean = safemean([epinfo['episode_step'] for epinfo in epinfobuf])
 
-                logger.configure("./log/{}".format(update), ['stdout', 'log', 'json', 'csv', 'tensorboard'])
+                logger.configure(self.log_dir + '/{}'.format(update), ['stdout', 'json'])
                 logger.logkv("serial_timesteps", update * self.nsteps)
                 logger.logkv("nupdates", update)
                 logger.logkv("total_timesteps", update * self.nbatch)
@@ -538,13 +555,14 @@ class ppo2:
                 logger.logkv('epstepmean', epstepmean)
                 logger.logkv('time_elapsed', tnow - tfirststart)
                 logger.logkv('best_idx', self.best_idx)
+                logger.logkv('total_reward', total_reward)
                 for (lossval, lossname) in zip(lossvals, self.model.loss_names):
                     logger.logkv(lossname, lossval)
                 logger.dumpkvs()
 
             if self.task_index == 0 and self.save_interval and (update % self.save_interval == 0 or update == 1) and self.save_dir:
                 # save to joblib
-                checkdir = osp.join(self.save_dir, 'checkpoints')
+                checkdir = osp.join(self.save_dir, str(update))
                 os.makedirs(checkdir, exist_ok=True)
                 savepath = osp.join(checkdir, '%.5i' % update)
                 print('Saving to', savepath)
